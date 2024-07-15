@@ -10,7 +10,7 @@
 1. First download the Github repository as a zip file. To do this, click on 'Code', then 'Download ZIP'. A zip file will be downloaded.
 2. Extract the zip file by right clicking and *'Extract All' >> 'Extract'*.
 3. Now go to the extract folder. There will be five files: **README.md**, **MQ135.LIB**, **MQ135.IDX**, **MQ135.hex** and **LICENSE**.
-4. Go to *'C:\ProgramData\Labcenter Electronics\Proteus 8 Professional\LIBRARY'* folder. `NOTE: This folder might be hidden in the file system. In that case, check 'View' >> 'Hidden Items'.`
+4. Go to *'C:\Program Files (x86)\Labcenter Electronics\Proteus 8 Professional\DATA\LIBRARY'* folder. `NOTE: This folder might be hidden in the file system. In that case, check 'View' >> 'Hidden Items'.`
 5. Copy the **MQ135.LIB** and **MQ135.MDX** files here.
 6. Save the **MQ135.hex** file in a known location; probably your Proteus project folder.
 
