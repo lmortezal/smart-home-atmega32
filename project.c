@@ -20,7 +20,7 @@ void main(void)
 	{
 
 		// while (passFlag != 1);
-		
+		// if password is correct atmega will start the system
 		
 		delay_ms(50);
 		lcd_clear();
@@ -383,6 +383,7 @@ interrupt[USART_RXC] void uart_receive()
 		}
 		else
 		{
+
 			uart_buffer[uart_index] = '\0';
 			uart_index = 0;
 			string_received = 1;
@@ -439,6 +440,7 @@ void process_received_string(const char *str)
 	else
 	{
 		uart_transmit_string("What?");
+		uart_transmit(13);
 	}
 }
 
