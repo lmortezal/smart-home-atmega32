@@ -1,21 +1,27 @@
 #include "headers.h"
-
+// add header file
 
 
 void main(void)
 {
 
 	#asm("sei");
+	// enable interrupts with assmebly code
+
 	ADC_init();
 	lcd_init(16);
 	uart_init();
 	DcMotor_Init();
 	PWM1_init();
+	// initialize the modules
+
+
     DDRA |= (1 << SPEAKER_PIN);
 	DDRD |= (1 << 2) | (1 << 3) | (1 << 4) | (1 << 5) | (1 << 6) | (1 << 7); 
 
 	uart_transmit_string("Enter password : ");
 
+	delay_ms(100);
 	while (1)
 	{
 
@@ -27,12 +33,14 @@ void main(void)
 		
 		check_gas();
 		
+		// process string from client if enter '\0'
 		if (string_received)
 		{
 			string_received = 0;
 			process_received_string(uart_buffer);
 		}
 
+		// toggle for display
 		if(displayFlag == 0){
 			TempDC_display();
 		}else if(displayFlag == 1){
@@ -43,13 +51,15 @@ void main(void)
 	}
 }
 
+// Check gas sensor value and call warning function
 void check_gas(){
-	uint16 gas_data = gasData();
+	uint16_t gas_data = gasData();
 
 	if(gas_data >= 600){warning(1);}
 	else if(gas_data < 600){warning(0);}
 }
 
+// warning function
 void warning(uint8_t flag){
 	if(flag == 1){
 		playTone();
@@ -59,8 +69,10 @@ void warning(uint8_t flag){
 
 }
 
+
+// show gas display
 void GAS_display(){
-	uint32 Gas_raw_data = gasData();
+	uint32_t Gas_raw_data = gasData();
 
 	lcd_gotoxy(0, 0);
 	lcd_puts("-GAS Sensor-");
@@ -69,44 +81,45 @@ void GAS_display(){
 	lcd_puts(temporaryString);
 }
 
+// show temperature and dc motor display
 void TempDC_display()
 {
-	uint8 temperature;
+	uint8_t temperature;
 
 	temperature = LM35_getTemperature();
 	switch (temperature / 10)
 	{
 	case 0: // 0-9
 		DcMotor_Rotate(STOP, 0);
-		sprintf(temporaryString, "    Fan is OFF");
+		sprintf(temporaryString, "   Fan is OFF");
 		break;
 	case 1: // 10-19
 		DcMotor_Rotate(STOP, 0);
-		sprintf(temporaryString, "    Fan is OFF");
+		sprintf(temporaryString, "   Fan is OFF");
 		break;
 	case 2: // 20-29
 		DcMotor_Rotate(CLOCKWISE, 10);
-		sprintf(temporaryString, "    Fan is ON");
+		sprintf(temporaryString, "   Fan is ON 10%%");
 		break;
 	case 3: // 30-39
 		DcMotor_Rotate(CLOCKWISE, 25);
-		sprintf(temporaryString, "    Fan is ON");
+		sprintf(temporaryString, "   Fan is ON 25%%");
 		break;
 	case 4: // 40-49
 		DcMotor_Rotate(CLOCKWISE, 50);
-		sprintf(temporaryString, "    Fan is ON");
+		sprintf(temporaryString, "   Fan is ON 50%%");
 		break;
 	case 5: // 50-59
 		DcMotor_Rotate(CLOCKWISE, 75);
-		sprintf(temporaryString, "    Fan is ON");
+		sprintf(temporaryString, "   Fan is ON 75%%");
 		break;
 	case 6: // 60-69
-		DcMotor_Rotate(CLOCKWISE, 75);
-		sprintf(temporaryString, "    Fan is ON");
+		DcMotor_Rotate(CLOCKWISE, 85);
+		sprintf(temporaryString, "   Fan is ON 85%%");
 		break;
 	default: // 70 >=
 		DcMotor_Rotate(CLOCKWISE, 100);
-		sprintf(temporaryString, "    Fan is ON");
+		sprintf(temporaryString, "   Fan is ON 100%%");
 		break;
 	}
 
@@ -124,235 +137,96 @@ void ADC_init()
 	ADCSRA = 0b10000000;
 }
 
-uint16 ADC_readChannel(uint8 channel_num)
+// read adc channel with channel number
+uint16_t ADC_readChannel(uint8_t channel_num)
 {
 	ADMUX = (ADMUX & 0b11100000) | (channel_num);
 	SET_BIT(ADCSRA, ADSC);
-	while ((ADCSRA & (LOGIC_HIGH << ADIF)) == 0);
+	while ((ADCSRA & (1 << ADIF)) == 0);
 	SET_BIT(ADCSRA, ADIF);
 	return ADCW;
 }
 
 //                                     LM35
-uint8 LM35_getTemperature(void)
+// convert adc value to temperature
+uint8_t LM35_getTemperature(void)
 {
-	uint8 temp_value = 0;
-	uint16 adc_value = 0;
+	uint8_t temp_value = 0;
+	uint16_t adc_value = 0;
 	/* Read ADC channel where the temperature sensor is connected */
 	adc_value = ADC_readChannel(SENSOR_CHANNEL_ID_LM35);
 	/* Calculate the temperature from the ADC value*/
-	temp_value = (uint8)(((uint32)adc_value * SENSOR_MAX_TEMPERATURE * ADC_REF_VOLT_VALUE) / (ADC_MAXIMUM_VALUE * SENSOR_MAX_VOLT_VALUE));
+	temp_value = (uint8_t)(((uint32_t)adc_value * SENSOR_MAX_TEMPERATURE * ADC_REF_VOLT_VALUE) / (ADC_MAXIMUM_VALUE * SENSOR_MAX_VOLT_VALUE));
 	return temp_value;
 }
 
 
 
 
-// dcmotor
+// dcmotor init
 void DcMotor_Init(void)
 {
 	/* DC-Motor 2 output pins */
-	GPIO_setupPinDirection(DcMotor_Pin0_PORT_ID, DcMotor_Pin0_PIN_ID,
-						   PIN_OUTPUT);
-	GPIO_setupPinDirection(DcMotor_Pin1_PORT_ID, DcMotor_Pin1_PIN_ID,
-						   PIN_OUTPUT);
-
+	SET_BIT(DDRB,0);
+	SET_BIT(DDRB,1);
+	
 	/* Stop the DC-Motor at the beginning */
-	GPIO_writePin(DcMotor_Pin0_PORT_ID, DcMotor_Pin0_PIN_ID, LOGIC_LOW);
-	GPIO_writePin(DcMotor_Pin1_PORT_ID, DcMotor_Pin1_PIN_ID, LOGIC_LOW);
+	CLEAR_BIT(PORTB,0);
+	CLEAR_BIT(PORTB,1);
+
 }
 
-/*
- * Description :
- * Function responsible for rotate the DC Motor CW/ or A-CW or stop the motor based on the state input state value
- * and send the required duty cycle to the PWM driver based on the required speed value.
- */
-void DcMotor_Rotate(DcMotor_State state, uint8 speed)
-{
-	uint8 duty_cycle;
 
-	/*
-	 * Write on the DC-Motor pins
-	 * Set direction of motor based on state-
-	 * */
+// change direction of motor
+void DcMotor_Rotate(DcMotor_State state, uint8_t speed)
+{
+	uint8_t duty_cycle;
+
+
 
 	switch (state)
 	{
 	case CLOCKWISE:
 		// Rotate motor clockwise
-		GPIO_writePin(DcMotor_Pin0_PORT_ID, DcMotor_Pin0_PIN_ID, LOGIC_HIGH);
-		GPIO_writePin(DcMotor_Pin1_PORT_ID, DcMotor_Pin1_PIN_ID, LOGIC_LOW);
+		SET_BIT(PORTB,0);
+		CLEAR_BIT(PORTB,1);
 		break;
 	case ANTI_CLOCKWISE:
 		// Rotate motor anti-clockwise
-		GPIO_writePin(DcMotor_Pin0_PORT_ID, DcMotor_Pin0_PIN_ID, LOGIC_LOW);
-		GPIO_writePin(DcMotor_Pin1_PORT_ID, DcMotor_Pin1_PIN_ID, LOGIC_HIGH);
+		CLEAR_BIT(PORTB,0);
+		SET_BIT(PORTB,1);
 		break;
 	case STOP:
 		// Stop the motor
-		GPIO_writePin(DcMotor_Pin0_PORT_ID, DcMotor_Pin0_PIN_ID, LOGIC_LOW);
-		GPIO_writePin(DcMotor_Pin1_PORT_ID, DcMotor_Pin1_PIN_ID, LOGIC_LOW);
+		CLEAR_BIT(PORTB,0);
+		CLEAR_BIT(PORTB,1);
 		break;
 	default:
 		// Invalid motor state
 		return;
 	}
-	//	/* Write on the DC-Motor pins */
-	//	GPIO_writePin(PORTB_ID, PIN0_ID, (state & 0x01));
-	//	GPIO_writePin(PORTB_ID, PIN1_ID, ((state >> 1) & 0x01));
+
 	/*Calculate the Duty Cycle and send it to the PWM Driver*/
-	duty_cycle = ((uint8)(((uint16)(speed * TOP)) / 100));
+	duty_cycle = ((uint8_t)(((uint16_t)(speed * TOP)) / 100));
 	PWM_Timer0_Start(duty_cycle);
 }
 
-// gpio
-/*
- * Description :
- * Setup the direction of the required pin input/output.
- * If the input port number or pin number are not correct, The function will not handle the request.
- */
-void GPIO_setupPinDirection(uint8 port_num, uint8 pin_num, GPIO_PinDirectionType direction)
-{
-	/*
-	 * Check if the input port number is greater than NUM_OF_PINS_PER_PORT value.
-	 * Or if the input pin number is greater than NUM_OF_PINS_PER_PORT value.
-	 * In this case the input is not valid port/pin number
-	 */
-	if ((pin_num >= NUM_OF_PINS_PER_PORT) || (port_num >= NUM_OF_PORTS))
-	{
-		/* Do Nothing */
-	}
-	else
-	{
-		/* Setup the pin direction as required */
-		switch (port_num)
-		{
-		case PORTA_ID:
-			if (direction == PIN_OUTPUT)
-			{
-				SET_BIT(DDRA, pin_num);
-			}
-			else
-			{
-				CLEAR_BIT(DDRA, pin_num);
-			}
-			break;
-		case PORTB_ID:
-			if (direction == PIN_OUTPUT)
-			{
-				SET_BIT(DDRB, pin_num);
-			}
-			else
-			{
-				CLEAR_BIT(DDRB, pin_num);
-			}
-			break;
-		case PORTC_ID:
-			if (direction == PIN_OUTPUT)
-			{
-				SET_BIT(DDRC, pin_num);
-			}
-			else
-			{
-				CLEAR_BIT(DDRC, pin_num);
-			}
-			break;
-		case PORTD_ID:
-			if (direction == PIN_OUTPUT)
-			{
-				SET_BIT(DDRD, pin_num);
-			}
-			else
-			{
-				CLEAR_BIT(DDRD, pin_num);
-			}
-			break;
-		}
-	}
-}
 
-/*
- * Description :
- * Write the value Logic High or Logic Low on the required pin.
- * If the input port number or pin number are not correct, The function will not handle the request.
- * If the pin is input, this function will enable/disable the internal pull-up resistor.
- */
-void GPIO_writePin(uint8 port_num, uint8 pin_num, uint8 value)
-{
-	/*
-	 * Check if the input port number is greater than NUM_OF_PINS_PER_PORT value.
-	 * Or if the input pin number is greater than NUM_OF_PINS_PER_PORT value.
-	 * In this case the input is not valid port/pin number
-	 */
-	if ((pin_num >= NUM_OF_PINS_PER_PORT) || (port_num >= NUM_OF_PORTS))
-	{
-		/* Do Nothing */
-	}
-	else
-	{
-		/* Write the pin value as required */
-		switch (port_num)
-		{
-		case PORTA_ID:
-			if (value == LOGIC_HIGH)
-			{
-				SET_BIT(PORTA, pin_num);
-			}
-			else
-			{
-				CLEAR_BIT(PORTA, pin_num);
-			}
-			break;
-		case PORTB_ID:
-			if (value == LOGIC_HIGH)
-			{
-				SET_BIT(PORTB, pin_num);
-			}
-			else
-			{
-				CLEAR_BIT(PORTB, pin_num);
-			}
-			break;
-		case PORTC_ID:
-			if (value == LOGIC_HIGH)
-			{
-				SET_BIT(PORTC, pin_num);
-			}
-			else
-			{
-				CLEAR_BIT(PORTC, pin_num);
-			}
-			break;
-		case PORTD_ID:
-			if (value == LOGIC_HIGH)
-			{
-				SET_BIT(PORTD, pin_num);
-			}
-			else
-			{
-				CLEAR_BIT(PORTD, pin_num);
-			}
-			break;
-		}
-	}
-}
+
+
 
 
 // pwm
-void PWM_Timer0_Start(uint8 duty_cycle)
+void PWM_Timer0_Start(uint8_t duty_cycle)
 {
 
-	TCNT0 = 0;		   /* Set Timer Initial Value */
-	OCR0 = duty_cycle; /* Set Compare Value */
-	/* set PB3/OC0 as output pin --> pin where the PWM signal is generated from MC */
-	GPIO_setupPinDirection(PWM_PORT_ID, PWM_PIN_ID, PIN_OUTPUT);
-	/*
-	 * Configure Timer0 Control Register:
-	 * 1. Fast PWM mode FOC0=0
-	 * 2. Fast PWM Mode WGM01=1 & WGM00=1
-	 * 3. Clear OC0 when match occurs (non inverted mode) COM00=0 & COM01=1
-	 * 4. clock = F_CPU/8 CS00=0 CS01=1 CS02=0
-	 */
+	TCNT0 = 0;		   
+	OCR0 = duty_cycle; 
+	
+	SET_BIT(DDRB, 3);
+
+
+	// configure timer0 control register | fast PWM mode | non inverted mode | clock = 8mhz/8
 	TCCR0 = (1 << WGM00) | (1 << WGM01) | (1 << COM01) | (1 << CS01);
 }
 
@@ -472,7 +346,7 @@ void check_password()
 // GAS
 int gasData()
 {
-	uint16 adc_value = 0;
+	uint16_t adc_value = 0;
 	adc_value = ADC_readChannel(GAS_SENSOR_CHANNEL_ID);
 	return adc_value;
 }
